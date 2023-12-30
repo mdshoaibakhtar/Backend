@@ -3,10 +3,11 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const connectToMongo = require('../DB/DataBase');
-const User = require('../Schema/User')
+const Users = require('../Schema/User')
 const cors = require('cors')
 const randomstring = require('randomstring')
 const nodemailer = require('nodemailer')
+const router = express.Router();
 
 connectToMongo();
 const app = express();
@@ -29,11 +30,12 @@ const verifyToken = (req, res, next) => {
 };
 
 // Create a new user
-app.post('/api/createuser', async (req, res) => {
+router.post('/createuser', async (req, res) => {
   try {
-    const { firstName, lastName, email, mobileNumber,  password, confirmPassword } = req.body;
+    const { firstName, lastName, email, mobileNumber, password, confirmPassword } = req.body;
     // Basic input validation
     if (!firstName || !email || !password || !mobileNumber) {
+      console.log("first", req.body)
       return res.status(400).json({ message: 'Please fill in all fields' });
     }
     // Basic input validation
@@ -41,40 +43,38 @@ app.post('/api/createuser', async (req, res) => {
       return res.status(400).json({ message: 'Please fill correct confirm password' });
     }
     // Check if the user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await Users.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists' });
     }
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
     // Create and save the new user
-    const newUser = new User({ firstName, lastName, email, password: hashedPassword });
-    console.log(newUser)
+    const newUser = new Users({ firstName, lastName, email,mobileNumber, password: hashedPassword, confirmPassword: hashedPassword, date:Date.now() });
     newUser.save(); // getting server error
-    console.log(newUser, "111")
-    res.status(201).json({ message: 'User created successfully' });
+    res.status(200).json({ message: 'User created successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });
   }
 });
 
 // Login
-app.post('/api/login', async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
     // Find the user by email
-    const user = await User.findOne({ email });
+    const user = await Users.findOne({ email });
 
     if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(200).json({ status: 400, message: 'Invalid email or password' });
     }
 
     // Check if the password is correct
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {
-      return res.status(401).json({ message: 'Invalid email or password' });
+      return res.status(200).json({ status: 400, message: 'Invalid email or password' });
     }
 
     // Generate a JWT token for authentication
@@ -82,7 +82,7 @@ app.post('/api/login', async (req, res) => {
       expiresIn: '1h',
     });
 
-    res.status(200).json({ token });
+    res.status(200).json({ token:token, message:"Log in success", status : 200});
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
@@ -136,12 +136,12 @@ app.delete('/api/users/:id', verifyToken, async (req, res) => {
 
 
 // Forgot Password - Send OTP via Email
-app.post('/api/forgot-password', async (req, res) => {
+router.post('/forgot_password', async (req, res) => {
   try {
     const { email } = req.body;
 
     // Find the user by email
-    const user = await User.findOne({ email });
+    const user = await Users.findOne({ email });
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -216,7 +216,9 @@ app.post('/api/verify-otp', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+// const PORT = process.env.PORT || 3000;
+// app.listen(PORT, () => {
+//   console.log(`Server is running on port ${PORT}`);
+// });
+
+module.exports = router;

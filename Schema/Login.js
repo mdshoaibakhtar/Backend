@@ -2,9 +2,6 @@ const mongoose = require('mongoose');
 const {Schema} = mongoose;
 
 const Login = new Schema({
-    username:{
-        type:String,
-    },
     email:{
         type:String,
     },
